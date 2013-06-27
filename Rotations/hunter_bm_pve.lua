@@ -1,5 +1,6 @@
 function hunter_bm_pve()
 	jps.Tooltip = ":: BM Hunter (PvE) 5.2 ::"
+
 	---------------
 	local spell = spell,target
 	local sps_duration = jps.debuffDuration("serpent sting")
@@ -7,7 +8,8 @@ function hunter_bm_pve()
 	local pet_focus = UnitMana("pet")
 	local pet_frenzy = jps.buffStacks("Frenzy Effect","pet")
 	local pet_attacking = IsPetAttackActive()
-	
+	local aggro = ( UnitThreatSituation("player") == 3 )
+
 	---------------
 	---- INFO -----
 	---------------
@@ -18,36 +20,50 @@ function hunter_bm_pve()
 	-- use CDs incl. Lifeblood (herbalism)
 	-- hot-keys for traps
 	
-	---------------------
-	--- TRAP HOT-KEYS ---
-	---------------------
-	-- Reset keys to zero
-	local shiftKEY_binary = 0
-	local altKEY_binary = 0
-	local controlKEY_binary = 0
+	-- Feign Death if we get aggro.
+	if aggro and jps.cooldown("Feign Death") == 0 and jps.checkTimer("feign") and GetNumSubgroupMembers() > 0 then
+	  jps.createTimer("feign", "2")
+	  print("Feign Death")
+	  return "Feign Death"
+	elseif jps.checkTimer("feign") > 0 then
+		-- print("Still Feigning")
+	  return nil
+	elseif jps.buff("Feign Death") and jps.checkTimer("feign") == 0 then
+		print("Cancel Feign Death")
+	  CancelUnitBuff("player", "Feign Death")
+	  return nil
+	end
+
+	-- ---------------------
+	-- --- TRAP HOT-KEYS ---
+	-- ---------------------
+	-- -- Reset keys to zero
+	-- local shiftKEY_binary = 0
+	-- local altKEY_binary = 0
+	-- local controlKEY_binary = 0
 	
-	-- Register key downs
-	if IsShiftKeyDown() ~= nil 		and GetCurrentKeyBoardFocus() == nil then shiftKEY_binary = 1 	end
-	if IsAltKeyDown() ~= nil 		and GetCurrentKeyBoardFocus() == nil then altKEY_binary = 2 	end
-	if IsControlKeyDown() ~= nil 	and GetCurrentKeyBoardFocus() == nil then controlKEY_binary = 4 end
+	-- -- Register key downs
+	-- if IsShiftKeyDown() ~= nil 		and GetCurrentKeyBoardFocus() == nil then shiftKEY_binary = 1 	end
+	-- if IsAltKeyDown() ~= nil 		and GetCurrentKeyBoardFocus() == nil then altKEY_binary = 2 	end
+	-- if IsControlKeyDown() ~= nil 	and GetCurrentKeyBoardFocus() == nil then controlKEY_binary = 4 end
 	
-	-- Binary calculation
-	trapKEY_combo = shiftKEY_binary + altKEY_binary + controlKEY_binary
-	-- print("Trap key combo pressed: ",trapKEY_combo) -- FOR TESTING PURPOSE
+	-- -- Binary calculation
+	-- trapKEY_combo = shiftKEY_binary + altKEY_binary + controlKEY_binary
+	-- print("Trap key combo pressed: ", trapKEY_combo) -- FOR TESTING PURPOSE
 	
-	-- Binary key combinations
-	-- 1 = Shift
-	-- 2 = Alt
-	-- 3 = Shift + Alt
-	-- 4 = Control
-	-- 5 = Shift + Control
-	-- 6 = Alt + Control
-	-- 7 = Shift + Alt + Control
-	if trapKEY_combo == 1 then ExplosiveTrap_KEY 	= true 	else ExplosiveTrap_KEY 	= false end -- Launch Explosiv trap
-	if trapKEY_combo == 2 then FreezingTrap_KEY 	= true  else FreezingTrap_KEY 	= false end -- Launch Freezing trap (ice block trap)
-	if trapKEY_combo == 4 then SnakeTrap_KEY 		= true  else SnakeTrap_KEY 		= false end -- Launch Snake trap
-	if trapKEY_combo == 5 then IceTrap_KEY 			= true  else IceTrap_KEY 		= false end -- Launch Ice trap (ice on ground)
-	if trapKEY_combo == 6 then allInOneTraps_KEY 	= true 	else allInOneTraps_KEY 	= false end -- Launch all traps after each other
+	-- -- Binary key combinations
+	-- -- 1 = Shift
+	-- -- 2 = Alt
+	-- -- 3 = Shift + Alt
+	-- -- 4 = Control
+	-- -- 5 = Shift + Control
+	-- -- 6 = Alt + Control
+	-- -- 7 = Shift + Alt + Control
+	-- if trapKEY_combo == 1 then ExplosiveTrap_KEY 	= true 	else ExplosiveTrap_KEY 	= false end -- Launch Explosiv trap
+	-- if trapKEY_combo == 2 then FreezingTrap_KEY 	= true  else FreezingTrap_KEY 	= false end -- Launch Freezing trap (ice block trap)
+	-- if trapKEY_combo == 4 then SnakeTrap_KEY 		= true  else SnakeTrap_KEY 		= false end -- Launch Snake trap
+	-- if trapKEY_combo == 5 then IceTrap_KEY 			= true  else IceTrap_KEY 		= false end -- Launch Ice trap (ice on ground)
+	-- if trapKEY_combo == 6 then allInOneTraps_KEY 	= true 	else allInOneTraps_KEY 	= false end -- Launch all traps after each other
 	
 	--------------------
 	-- Auto use setup --
@@ -77,48 +93,44 @@ function hunter_bm_pve()
 	-- Spell Table --
 	-----------------
 	
-	local spellTable =  {}
-	spellTable[1] = {
-		["ToolTip"] = "BM Hunter PVE 5.3",
-
+	local spellTable =  {
 		-- Preparation (flasks)
-		{ jps.useBagItem("Alchemist's Flask") , not jps.buff("Enhanced Agility") and not jps.buff("Flask of Spring Blossoms") and jps.UseCDs},
+		{ jps.useBagItem("Alchemist's Flask"), not jps.buff("Enhanced Agility") and not jps.buff("Flask of Spring Blossoms") and jps.UseCDs},
 		-- Revive pet
-		{ "Heart of the Phoenix",			UnitIsDead("pet") ~= nil and HasPetUI() ~= nil }, -- Instant revive pet (only some pets, Ferocity)
-		{ "Revive Pet",						((UnitIsDead("pet") ~= nil and HasPetUI() ~= nil) or HasPetUI() == nil) and not jps.Moving }, 
+		-- { "Heart of the Phoenix",			UnitIsDead("pet") ~= nil and HasPetUI() ~= nil }, -- Instant revive pet (only some pets, Ferocity)
+		-- { "Revive Pet",						((UnitIsDead("pet") ~= nil and HasPetUI() ~= nil) or HasPetUI() == nil) and not jps.Moving }, 
 		-- Heal pet
-		{ "Mend Pet", 						jps.hp("pet") < 0.90 and not jps.buff("Mend Pet","pet") },
+		{ "Mend Pet", jps.hp("pet") < 0.90 and not jps.buff("Mend Pet","pet") and not UnitIsDead("pet") and HasPetUI() },
 		-- Set pet to passive (IMPORTANT!)
-		{ {"macro","/script PetPassiveMode()"},		petIsPassive == nil }, -- Set pet to passive
+		{ {"macro","/script PetPassiveMode()"},		petIsPassive == nil and not UnitIsDead("pet") and HasPetUI() }, -- Set pet to passive
 		-- Misc
-		{ {"macro","/petattack"}, 			petShouldAttackMyTarget },
+		{ {"macro","/petattack"}, petShouldAttackMyTarget and not UnitIsDead("pet") and HasPetUI() },
 		{ "Aspect of the Hawk", 			not jps.buff("Aspect of the Hawk") }, 
 		{ "Aspect of the Iron Hawk", 		not jps.buff("Aspect of the Iron Hawk") }, -- Tier 3 talent
 		-- Misdirect to pet if no "focus" -- for farming, best with Glyph of Misdirection
-		{ "Misdirection", 					not jps.buff("Misdirection") and UnitExists("focus") == nil and not IsInGroup() and UnitExists("pet") ~= nil, "pet" }, -- IsInGroup() returns true/false. Works for any party/raid
-		{ "Misdirection", 					not jps.buff("Misdirection") and UnitExists("focus") ~= nil, "focus" },
+		{ "Misdirection", not jps.buff("Misdirection") and UnitExists("focus"), "focus" },
+		{ "Misdirection", not jps.buff("Misdirection") and not UnitExists("focus") and UnitExists("pet"), "pet" }, -- IsInGroup()
+		
 		-- Healthstone
 		{ jps.useBagItem("Healthstone") , 	jps.hp("player") < 0.50 }, -- restores 20% of total health
 		-- 
-		{ "Silencing Shot", 				jps.shouldKick() and jps.castTimeLeft("target") < 1.4 }, -- Tier 2 talent
+		{ "Silencing Shot", 				jps.shouldKick() }, -- Tier 2 talent
 		-- Trinkets and Engineering Gloves
 		-- On-use Trinkets.
-		{ jps.useTrinket(0), jps.UseCDs },
+		-- { jps.useTrinket(0), jps.UseCDs },
 		{ jps.useTrinket(1), jps.UseCDs },
 		-- Requires engineerins
 		{ jps.useSynapseSprings(), jps.UseCDs },
 		-- Requires herbalism
-		{ "Lifeblood",			jps.UseCDs },	
+		{ "Lifeblood", jps.UseCDs },	
 		-- Use pot
 		{ jps.useBagItem("Virmen's Bite"), 	autoUseVirminsBite and jps.UseCDs and (jps.buff("Rapid Fire") or jps.bloodlusting()) }, 		
-		-- CDs
-		{ "Lifeblood", 						jps.UseCDs }, -- Herbalism
 		-- Traps
-		{ "Trap Launcher", 					not jps.buff("Trap Launcher") },
-		{ "Explosive Trap",					(ExplosiveTrap_KEY 	or allInOneTraps_KEY) and jps.buff("Trap Launcher") }, 
-		{ "Ice Trap",						(IceTrap_KEY 		or allInOneTraps_KEY) and jps.buff("Trap Launcher") }, 	
-		{ "Snake Trap",						(SnakeTrap_KEY 		or allInOneTraps_KEY) and jps.buff("Trap Launcher") }, 	
-		{ "Freezing Trap",					FreezingTrap_KEY 	and jps.buff("Trap Launcher") }, 	
+		-- { "Trap Launcher", 					not jps.buff("Trap Launcher") },
+		-- { "Explosive Trap",					(ExplosiveTrap_KEY 	or allInOneTraps_KEY) and jps.buff("Trap Launcher") }, 
+		-- { "Ice Trap",						(IceTrap_KEY 		or allInOneTraps_KEY) and jps.buff("Trap Launcher") }, 	
+		-- { "Snake Trap",						(SnakeTrap_KEY 		or allInOneTraps_KEY) and jps.buff("Trap Launcher") }, 	
+		-- { "Freezing Trap",					FreezingTrap_KEY 	and jps.buff("Trap Launcher") }, 	
 		-- AoE
 		{ "Multi-Shot", 					jps.MultiTarget },
 		-- Rotation
@@ -146,8 +158,7 @@ function hunter_bm_pve()
 
 	jps.petIsDead = false
 
-	local spellTableActive = jps.RotationActive(spellTable)
-	spell,target = parseSpellTable(spellTableActive)
+	spell,target = parseSpellTable(spellTable)
 	return spell,target
 
 end

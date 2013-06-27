@@ -1,5 +1,7 @@
 function hunter_bm_pvp()
--- valve
+	jps.Tooltip = ":: BM Hunter (PvP) 5.2 ::"
+
+	-- valve
 	local player = jpsName
 	local pet = "pet"
 	local sps_duration = jps.debuffDuration("serpent sting")
@@ -57,9 +59,7 @@ function hunter_bm_pvp()
 	------------------------
 	-- SPELL TABLE ---------
 	------------------------
-	local spellTable = 
-	{
-	
+	local spellTable = {
 	-- Should Spirit Mend  
 		{ "spirit mend", jps.IsSpellInRange("spirit mend",spiritMendTarget) and shouldSpiritMend() , spiritMendTarget },
 	
