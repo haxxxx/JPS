@@ -27,8 +27,7 @@ function priest_disc_pve()
   --Get the health of our decided target
   local tankHP = jps.hpInc(tank)
   local defaultHP = jps.hpInc(default)
-  local defaultAggro = false
-  if UnitThreatSituation(default) == 3 then defaultAggro = true end
+  local defaultAggro = ( UnitThreatSituation(default) == 3 )
   
   -- counts the number of party members having a significant health loss
   local unitsNeedHealing = 0
