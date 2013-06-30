@@ -242,11 +242,21 @@ function jps.Cast(spell)  -- "number" "string"
 	end
 	
 	jps.LastTarget = jps.Target
+	jps.LastTargetGUID = UnitGUID(jps.Target)
 	jps.Target = nil
 	jps.Message = nil
 	jps.ThisCast = nil
 end
 
+function jps.isRecast(spell,unit)
+	local spellname = nil
+	if type(spell) == "string" then spellname = spell end
+	if type(spell) == "number" then spellname = tostring(select(1,GetSpellInfo(spell))) end
+	
+	if unit==nil then unit = "target" end
+	
+	return jps.LastCast==spellname and UnitGUID(unit)==jps.LastTargetGUID
+end
 ----------------------
 -- DEBUG MODE
 ----------------------`
@@ -390,7 +400,8 @@ function parseSpellTable( hydraTable )
 			local macroText = spell[2]
 			local macroTarget = spell[3]
 			-- Workaround for TargetUnit is still PROTECTED despite goblin active
- 			if jps.UnitExists(macroTarget) then jps.Macro("/target "..macroTarget) end
+ 			local changeTargets = jps.UnitExists(macroTarget)
+			if changeTargets then jps.Macro("/target "..macroTarget) end
  			
 			if conditions and type(macroText) == "string" then
 				local macroSpell = macroText
@@ -417,7 +428,7 @@ function parseSpellTable( hydraTable )
 					end
 				end
 			end
-			if jps.isHealer then jps.Macro("/targetlasttarget") end
+			if changeTargets and jps.isHealer then jps.Macro("/targetlasttarget") end
 			
 		-- MultiTarget List -- { { "func" , spell , function_unit }, function_conditions , table_unit , message }
 		elseif type(spell) == "table" and spell[1] == "func" and conditions then

@@ -1,4 +1,5 @@
-
+local parser = {}
+parser.testMode = false
 function fnConditionsMatched(spell,conditions)
     -- nil
     if spell == nil then
@@ -13,10 +14,15 @@ function fnConditionsMatched(spell,conditions)
     end
 end
 
+parser.compiledTables = {}
 
 -- Pick a spell from a priority table.
 function parseStaticSpellTable( hydraTable )
     if jps.firstInitializingLoop == true then return nil,"target" end
+    if not parser.compiledTables[tostring(hydraTable)] then 
+        jps.compileSpellTable(hydraTable)
+        parser.compiledTables[tostring(hydraTable)] = true
+    end
     local spell = nil
     local conditions = nil
     local target = nil
@@ -48,7 +54,8 @@ function parseStaticSpellTable( hydraTable )
             local macroTarget = spell[3]
             if type(macroTarget)=="function" then macroTarget = macroTarget() end
             -- Workaround for TargetUnit is still PROTECTED despite goblin active
-             if jps.UnitExists(macroTarget) then jps.Macro("/target "..macroTarget) end
+            local changeTargets = jps.UnitExists(macroTarget) 
+            if changeTargets then jps.Macro("/target "..macroTarget) end
              
             if conditions() and type(macroText) == "string" then
                 local macroSpell = macroText
@@ -75,7 +82,7 @@ function parseStaticSpellTable( hydraTable )
                     end
                 end
             end
-            if jps.isHealer then jps.Macro("/targetlasttarget") end
+            if changeTargets and jps.isHealer then jps.Macro("/targetlasttarget") end
         end
 
         -- If not already assigned, assign target now.
@@ -120,7 +127,7 @@ local function AND(...)
     local functions = {...}
     return function()
         for _,fn in pairs(functions) do
-            if not fn() then return false end
+            if not fn() then if not parser.testMode then return false end end
         end
         return true
     end
@@ -130,7 +137,7 @@ local function OR(...)
     local functions = {...}
     return function()
         for _,fn in pairs(functions) do
-            if fn() then return true end
+            if fn() then if not parser.testMode then return true end end
         end
         return false
     end
@@ -199,7 +206,7 @@ end
 
 local function ERROR(condition,msg)
     return function()
-        print("Your rotation has an error in " .. tostring(condition) .. ": " ..tostring(msg))
+        print("Your rotation has an error in: \n" .. tostring(condition) .. "\n---" ..tostring(msg))
         return false
     end
 end
@@ -219,7 +226,6 @@ end
     parameterlist = <value> | <value> ',' <parameterlist>
 ]]
 
-local parser = {}
 
 function parser.pop(tokens)
     local t,v = unpack(tokens[1])
@@ -245,7 +251,7 @@ function parser.lookaheadData(tokens)
 end
 
 -- conditions = <condition> | <condition> 'and' <conditions> | <condition> 'or' <conditions>
-function parser.conditions(tokens) 
+function parser.conditions(tokens, expectBracket) 
     local condition1 = parser.condition(tokens)
     
     if tokens[1] then
@@ -259,11 +265,19 @@ function parser.conditions(tokens)
                 local condition2 = parser.conditions(tokens)
                 return OR(condition1, condition2)
             else
-                error("Conditions must be combined using keywords 'and' or 'or'!")
+                error("Unexpected " .. tostring(t) .. ":" .. tostring(v) .. " conditions must be combined using keywords 'and' or 'or'!")
+            end
+        elseif expectBracket then
+            if t == ")" then
+                return condition1
+            else
+                error("Unexpected " .. tostring(t) .. ":" .. tostring(v) .. " missing ')'!")
             end
         else
-            error("Conditions must be combined using 'and' or 'or'!")
+            error("Unexpected " .. tostring(t) .. ":" .. tostring(v) .. " conditions must be combined using keywords 'and' or 'or'!")
         end
+    elseif expectBracket then
+        error("Unexpected " .. tostring(t) .. ":" .. tostring(v) .. " missing ')'!")
     else
         return condition1
     end
@@ -275,15 +289,9 @@ function parser.condition(tokens)
     if t == "keyword" and v == "not" then
         parser.pop(tokens)
         return NOT(parser.condition(tokens))
-    elseif t == '(' then
+    elseif t == "(" then
         parser.pop(tokens)
-        local conditions = parser.conditions(tokens)
-        t, v = parser.pop(tokens)
-        if t == ')' then
-            return conditions
-        else
-            error("Missing ')'!")
-        end
+        return parser.conditions(tokens, true)
     else
         return parser.comparison(tokens)
     end
@@ -418,7 +426,9 @@ function jps.conditionParser(str)
     if not retOK then
         return ERROR(str,fn)
     end
+    parser.testMode = true
     local retOK, err = pcall(fn)
+    parser.testMode = false
     if not retOK then
         return ERROR(str,err)
     end
