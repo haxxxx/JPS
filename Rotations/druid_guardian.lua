@@ -19,6 +19,9 @@ function druid_guardian()
 		{ "mark of the wild",		 	not jps.buff("mark of the wild") , player },
 		{nil,									IsSpellInRange("lacerate","target") ~= 1 },
 	
+		-- Bear Form
+		{ "Bear Form", not jps.buff("Bear Form") },
+
 		-- Interrupts
 		{"skull bash",						jps.Interrupts and jps.shouldKick() },
 		{"mighty bash",					jps.Interrupts and jps.shouldKick() },
